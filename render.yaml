@@ -1,0 +1,75 @@
+# Render deployment configuration
+# https://render.com/docs/render-yaml-spec
+#
+# Usage: Push this file to your repo root. Render auto-detects it.
+# Set the environment variables listed below in the Render dashboard.
+
+services:
+  - type: web
+    name: askmydocs-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+
+    # Render free tier: 512 MB RAM, shared CPU
+    # Upgrade to "starter" for always-on (no sleep)
+    plan: free
+
+    # Health check — matches GET /health endpoint
+    healthCheckPath: /health
+
+    # Environment variables (set values in Render Dashboard → Environment)
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # Must be set manually in Render dashboard
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GROQ_MODEL
+        value: llama3-70b-8192
+
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+
+      - key: RERANKER_MODEL
+        value: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+      - key: CHUNK_SIZE
+        value: "512"
+
+      - key: CHUNK_OVERLAP
+        value: "64"
+
+      - key: TOP_K_RETRIEVAL
+        value: "20"
+
+      - key: TOP_N_RERANK
+        value: "3"
+
+      - key: RRF_K
+        value: "60"
+
+      - key: CORS_ORIGINS
+        sync: false          # Set to your Vercel URL: https://your-app.vercel.app
+
+      - key: RAGAS_FAITHFULNESS_THRESHOLD
+        value: "0.70"
+
+      - key: RAGAS_RELEVANCE_THRESHOLD
+        value: "0.70"
+
+      - key: RAGAS_CONTEXT_PRECISION_THRESHOLD
+        value: "0.65"
+
+      - key: RAGAS_CONTEXT_RECALL_THRESHOLD
+        value: "0.65"
+
+      - key: DEBUG
+        value: "false"
+
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: APP_VERSION
+        value: "1.0.0"

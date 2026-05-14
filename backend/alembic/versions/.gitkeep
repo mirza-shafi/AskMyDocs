@@ -1,0 +1,5 @@
+# Alembic auto-generates migration files into this directory.
+# The first migration is created by running:
+#   alembic revision --autogenerate -m "initial schema"
+# Then applied with:
+#   alembic upgrade head
