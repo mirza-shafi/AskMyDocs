@@ -43,7 +43,7 @@ export const useChatStore = create<ChatState>((set) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
-  setDocuments: (docs) => set({ documents: docs }),
+  setDocuments: (docs) => set({ documents: docs || [] }),
   setLoadingDocs: (loading) => set({ isLoadingDocs: loading }),
   setActiveDocId: (docId) => set({ activeDocId: docId }),
 

@@ -14,7 +14,7 @@ export function useUpload() {
     setLoadingDocs(true);
     try {
       const result = await listDocuments();
-      setDocuments(result.documents);
+      setDocuments(result.documents || []);
     } catch {
       // Silent fail on list refresh
     } finally {
