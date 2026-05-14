@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { DocumentItem, Message, SourceChunk } from '../types';
+import type { DocumentItem, Message } from '../types';
 
 interface ChatState {
   // Messages

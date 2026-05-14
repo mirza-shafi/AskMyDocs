@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ChatPage } from './pages/ChatPage';
 import { HomePage } from './pages/HomePage';
 
