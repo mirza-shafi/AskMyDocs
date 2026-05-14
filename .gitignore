@@ -1,0 +1,49 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+venv/
+env/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Editor directories and OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Build files
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+.eggs/
+
+# Coverage and testing
+coverage/
+*.cover
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
