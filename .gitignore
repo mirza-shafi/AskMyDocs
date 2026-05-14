@@ -55,3 +55,5 @@ coverage/
 htmlcov/
 .tox/
 .pytest_cache/
+
+.venv/

@@ -6,10 +6,15 @@ Usage (via FastAPI Depends):
 
 The engine is module-level so it is created once per worker process.
 Connection pool is sized conservatively for Neon.tech free tier (20 conn max).
+
+SSL note: asyncpg does not accept ?ssl= or ?sslmode= as URL query params via
+SQLAlchemy. SSL is passed explicitly via connect_args={"ssl": ssl_context}.
 """
 
 from __future__ import annotations
 
+import re
+import ssl
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -23,9 +28,22 @@ from app.core.config import get_settings
 
 _settings = get_settings()
 
+
+def _clean_url(url: str) -> tuple[str, dict]:
+    """Strip ?ssl=... / ?sslmode=... from URL; return (clean_url, connect_args)."""
+    connect_args: dict = {}
+    if re.search(r"[?&](ssl|sslmode)=", url):
+        url = re.sub(r"[?&]ssl(mode)?=[^&]*", "", url).rstrip("?&")
+        connect_args["ssl"] = ssl.create_default_context()
+    return url, connect_args
+
+
+_clean_db_url, _connect_args = _clean_url(_settings.DATABASE_URL)
+
 # One engine per worker process — reused across all requests.
 engine: AsyncEngine = create_async_engine(
-    _settings.DATABASE_URL,
+    _clean_db_url,
+    connect_args=_connect_args,
     pool_size=5,        # Conservative for Neon free tier
     max_overflow=10,
     pool_pre_ping=True, # Recover from idle connection drops

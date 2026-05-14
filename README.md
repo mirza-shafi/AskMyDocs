@@ -24,9 +24,16 @@ Query → Embed (bge-small) → Hybrid Retrieval (RRF) → Cross-Encoder Rerank 
 ### Backend
 
 ```bash
+# 1. Setup backend locally
 cd backend
-cp .env.example .env          # Fill in DATABASE_URL and GROQ_API_KEY
-pip install torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
+cp .env.example .env          # Fill in DATABASE_URL + GROQ_API_KEY
+python -m venv .venv && source .venv/bin/activate
+
+# macOS: plain torch (CPU-only by default — no +cpu suffix needed on macOS)
+pip install torch
+# Linux (CI / Docker): CPU-only build
+# pip install torch==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
+
 pip install -r requirements.txt
 alembic upgrade head           # Run database migrations
 uvicorn app.main:app --reload
