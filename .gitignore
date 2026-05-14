@@ -1,3 +1,11 @@
+# Planning docs (private — never push)
+plan.md
+
+# Secrets & local config
+.env
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log

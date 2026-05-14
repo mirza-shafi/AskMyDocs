@@ -1,0 +1,42 @@
+[
+  {
+    "question": "What is the main purpose of this document?",
+    "ground_truth": "The document provides an overview of the system architecture and its components."
+  },
+  {
+    "question": "What technologies are used in the backend?",
+    "ground_truth": "The backend uses FastAPI, PostgreSQL with pgvector, and sentence-transformers for embeddings."
+  },
+  {
+    "question": "How does the hybrid search work?",
+    "ground_truth": "Hybrid search combines vector similarity search and full-text keyword search, then fuses results using Reciprocal Rank Fusion (RRF)."
+  },
+  {
+    "question": "What is Reciprocal Rank Fusion?",
+    "ground_truth": "Reciprocal Rank Fusion (RRF) is a method to combine multiple ranked lists into a single ranking using the formula RRF(d) = sum of 1/(k + rank_i) where k is typically 60."
+  },
+  {
+    "question": "What embedding model is used?",
+    "ground_truth": "The BAAI/bge-small-en-v1.5 model from HuggingFace is used to generate 384-dimensional embeddings."
+  },
+  {
+    "question": "What LLM is used for answer generation?",
+    "ground_truth": "Groq's Llama 3 70B model is used for generating cited answers from retrieved context."
+  },
+  {
+    "question": "How are documents chunked?",
+    "ground_truth": "Documents are split into overlapping text chunks using a sliding window with configurable chunk size and overlap."
+  },
+  {
+    "question": "What is the reranking step?",
+    "ground_truth": "The cross-encoder model ms-marco-MiniLM-L-6-v2 reranks the top candidates from hybrid search to select the most relevant context chunks."
+  },
+  {
+    "question": "What evaluation metrics are used?",
+    "ground_truth": "Ragas metrics including faithfulness, answer relevance, context precision, and context recall are used to evaluate RAG quality."
+  },
+  {
+    "question": "Where is the database hosted?",
+    "ground_truth": "PostgreSQL with the pgvector extension is hosted on Neon.tech."
+  }
+]
