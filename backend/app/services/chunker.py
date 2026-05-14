@@ -93,17 +93,21 @@ def _split_text(
         # Snap end to nearest whitespace (don't cut mid-word)
         if end < text_len:
             snap = text.rfind(" ", start, end)
-            if snap > start:
+            # Only snap if the resulting chunk is larger than the overlap!
+            # Otherwise we'll enter an infinite loop when advancing start.
+            if snap > start + chunk_overlap:
                 end = snap
 
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
 
-        # Advance start with overlap
-        start = end - chunk_overlap
-        if start <= 0 or start >= text_len:
-            break
+        # Advance start with overlap, forcing strictly forward progress
+        next_start = end - chunk_overlap
+        if next_start <= start:
+            next_start = start + 1
+            
+        start = next_start
 
     return chunks
 
