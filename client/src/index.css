@@ -26,7 +26,14 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
 
-  --shadow-glow: 0 0 16px rgba(139,92,246,0.2);
+  --shadow-glow: 0 0 40px rgba(139,92,246,0.15);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --sidebar-width: 280px;
+  --header-height: 60px;
 }
 
 [data-theme="light"] {
@@ -36,22 +43,18 @@
   --bg-card-hover: #f8fafc;
   --border: #e2e8f0;
   --border-accent: #cbd5e1;
+
   --accent-purple: #7c3aed;
   --accent-cyan: #0891b2;
   --accent-green: #10b981;
   --accent-red: #ef4444;
+
   --text-primary: #0f172a;
   --text-secondary: #334155;
   --text-muted: #64748b;
+
   --shadow-glow: 0 4px 15px rgba(0, 0, 0, 0.05);
-}
-  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
-
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-  --sidebar-width: 280px;
-  --header-height: 60px;
+  --shadow-card: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 /* ── Reset & Base ────────────────────────────────────────────────────────────── */
@@ -120,25 +123,7 @@ body {
   border-radius: var(--radius-lg); padding: 28px 24px;
   transition: all 0.2s ease;
 }
-.feature-card:hover { background: var(--bg-card-hover); border-color: var(--border-accent); transform: translateY(-3px); box-shadow: var(--shadow-glow: 0 0 16px rgba(139,92,246,0.2);
-}
-
-[data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #f1f5f9;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f8fafc;
-  --border: #e2e8f0;
-  --border-accent: #cbd5e1;
-  --accent-purple: #7c3aed;
-  --accent-cyan: #0891b2;
-  --accent-green: #10b981;
-  --accent-red: #ef4444;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --shadow-glow: 0 4px 15px rgba(0, 0, 0, 0.05);
-}
+.feature-card:hover { background: var(--bg-card-hover); border-color: var(--border-accent); transform: translateY(-3px); box-shadow: var(--shadow-glow); }
 .feature-icon { font-size: 2rem; margin-bottom: 12px; }
 .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
 .feature-card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; }
