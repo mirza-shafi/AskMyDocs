@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # ── LLM ───────────────────────────────────────────────────────────────
     GROQ_API_KEY: str = Field(..., description="Groq API secret key")
-    GROQ_MODEL: str = Field(default="llama3-70b-8192")
+    GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
 
     # ── Embedding & Reranking ─────────────────────────────────────────────
     EMBEDDING_MODEL: str = Field(default="BAAI/bge-small-en-v1.5")

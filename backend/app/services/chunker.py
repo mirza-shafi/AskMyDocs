@@ -102,11 +102,18 @@ def _split_text(
         if chunk:
             chunks.append(chunk)
 
+        # If this chunk reached the end of the text, we're done.
+        # Without this guard, a trailing segment shorter than chunk_overlap
+        # would be re-emitted repeatedly (shrinking by one char each pass),
+        # producing dozens of useless one-character "tail" chunks.
+        if end >= text_len:
+            break
+
         # Advance start with overlap, forcing strictly forward progress
         next_start = end - chunk_overlap
         if next_start <= start:
             next_start = start + 1
-            
+
         start = next_start
 
     return chunks

@@ -73,7 +73,7 @@ async def evaluate_rag(sample: EvalInput) -> EvalScores:
         from langchain_groq import ChatGroq  # type: ignore[import-untyped]
         llm_judge = ChatGroq(
             api_key=settings.GROQ_API_KEY,
-            model_name="llama3-8b-8192",  # Smaller model for eval to save quota
+            model_name="llama-3.1-8b-instant",  # Smaller model for eval to save quota
             temperature=0,
         )
     except ImportError as exc:
