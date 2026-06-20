@@ -5,10 +5,12 @@ import { MessageBubble } from './MessageBubble';
 
 /** Full chat window: message thread + input bar. */
 export function ChatWindow() {
-  const { messages, isLoading } = useChatStore();
+  const { messages, isLoading, activeDocId, documents } = useChatStore();
   const { sendMessage } = useChat();
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const activeDoc = documents.find((d) => d.doc_id === activeDocId);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -37,8 +39,16 @@ export function ChatWindow() {
         {messages.length === 0 && (
           <div className="chat-empty">
             <div className="chat-empty-icon">💬</div>
-            <h3>Ask anything about your documents</h3>
-            <p>Upload a PDF or text file, then ask a question to get cited answers.</p>
+            <h3>
+              {activeDoc
+                ? `Ask anything about "${activeDoc.source_name}"`
+                : 'Select a document from the sidebar, then ask a question'}
+            </h3>
+            <p>
+              {activeDoc
+                ? `${activeDoc.chunk_count} chunks indexed and ready.`
+                : 'Upload a PDF or text file, then click it to select it.'}
+            </p>
           </div>
         )}
         {messages.map((msg) => (
@@ -57,28 +67,53 @@ export function ChatWindow() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar */}
-      <form className="chat-input-bar" onSubmit={handleSubmit}>
-        <textarea
-          id="chat-input"
-          className="chat-input"
-          placeholder="Ask a question… (Enter to send, Shift+Enter for newline)"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          rows={1}
-        />
-        <button
-          id="chat-send-btn"
-          type="submit"
-          className="chat-send-btn"
-          disabled={isLoading || !input.trim()}
-          aria-label="Send message"
-        >
-          {isLoading ? '⏳' : '➤'}
-        </button>
-      </form>
+      {/* Active document indicator + input bar */}
+      <div className="chat-input-wrapper">
+        {/* Scope pill — shows exactly which doc will be queried */}
+        <div className={`query-scope-bar ${activeDoc ? 'scope-doc' : 'scope-all'}`}>
+          {activeDoc ? (
+            <>
+              <span className="scope-icon">📄</span>
+              <span className="scope-label">
+                Asking about: <strong>{activeDoc.source_name}</strong>
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="scope-icon">🌐</span>
+              <span className="scope-label">
+                Asking across <strong>all documents</strong> — select one from the sidebar to focus
+              </span>
+            </>
+          )}
+        </div>
+
+        <form className="chat-input-bar" onSubmit={handleSubmit}>
+          <textarea
+            id="chat-input"
+            className="chat-input"
+            placeholder={
+              activeDoc
+                ? `Ask a question about ${activeDoc.source_name}…`
+                : 'Select a document first, then ask a question…'
+            }
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading}
+            rows={1}
+          />
+          <button
+            id="chat-send-btn"
+            type="submit"
+            className="chat-send-btn"
+            disabled={isLoading || !input.trim()}
+            aria-label="Send message"
+          >
+            {isLoading ? '⏳' : '➤'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

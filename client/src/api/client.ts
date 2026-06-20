@@ -11,7 +11,10 @@ import type {
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 60_000, // 60s — RAG pipeline can take time
-  headers: { 'Content-Type': 'application/json' },
+  // NOTE: Do NOT set a global Content-Type here.
+  // For JSON requests axios defaults to application/json automatically.
+  // For FormData (file uploads) axios MUST set multipart/form-data + boundary
+  // by itself — a global Content-Type header overrides that and breaks uploads.
 });
 
 // ── Request interceptor ──────────────────────────────────────────────────────
@@ -23,11 +26,28 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error.response?.data?.error ||
-      error.response?.data?.detail ||
-      error.message ||
-      'An unexpected error occurred';
+    // Normalise FastAPI / backend error shapes into a plain string.
+    // FastAPI validation errors: { detail: [{loc, msg, type}, ...] }
+    // FastAPI HTTP exceptions:   { detail: "some string" }
+    // Custom backend errors:     { error: "some string" }
+    const data = error.response?.data;
+    let message: string;
+
+    if (typeof data?.error === 'string') {
+      message = data.error;
+    } else if (typeof data?.detail === 'string') {
+      message = data.detail;
+    } else if (Array.isArray(data?.detail)) {
+      // FastAPI validation error array — extract the human-readable messages
+      message = (data.detail as Array<{ msg?: string }>)
+        .map((e) => e.msg ?? JSON.stringify(e))
+        .join('; ');
+    } else if (error.message) {
+      message = error.message;
+    } else {
+      message = 'An unexpected error occurred';
+    }
+
     return Promise.reject(new Error(message));
   },
 );
@@ -42,10 +62,13 @@ export const queryDocuments = async (payload: QueryRequest): Promise<QueryRespon
 export const uploadDocument = async (file: File): Promise<IngestResponse> => {
   const formData = new FormData();
   formData.append('file', file);
-  // Do NOT set Content-Type manually: axios derives the correct
-  // multipart/form-data header *with boundary* from the FormData instance.
-  // Hard-coding it drops the boundary and breaks server-side parsing.
-  const { data } = await api.post<IngestResponse>('/api/v1/ingest', formData);
+  // Pass the FormData directly — axios detects FormData and sets
+  // multipart/form-data + the correct boundary automatically.
+  // Explicitly delete the Content-Type for this request so the instance-level
+  // header (if any) never clobbers the multipart boundary.
+  const { data } = await api.post<IngestResponse>('/api/v1/ingest', formData, {
+    headers: { 'Content-Type': undefined },
+  });
   return data;
 };
 

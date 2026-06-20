@@ -77,8 +77,9 @@ async def run(
             context_blocks = [c.content for c in all_parents]
             llm_question = (
                 f"{question}\n\n(The context below is the FULL document, in "
-                "order. List EVERY matching item completely, preserving the "
-                "original wording and order. Do not omit, summarize, or "
+                "order. List EVERY matching item completely using Markdown "
+                "bullet points ('- '), preserving the original wording. "
+                "Do NOT use numbered lists. Do not omit, summarize, or "
                 "truncate any item. Base your answer only on the context.)"
             )
             answer = await llm.generate_answer(

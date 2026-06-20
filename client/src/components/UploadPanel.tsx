@@ -1,9 +1,14 @@
 import { useCallback } from 'react';
+import { useChatStore } from '../store/chatStore';
 import { useUpload } from '../hooks/useUpload';
 
 /** Drag-and-drop / click file upload panel. */
 export function UploadPanel() {
-  const { upload, uploadState, uploadError, progress } = useUpload();
+  const { upload, resetUpload, uploadState, uploadError, progress } = useUpload();
+  const { activeDocId, documents } = useChatStore();
+
+  // Show which document is currently active
+  const activeDoc = documents.find((d) => d.doc_id === activeDocId);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
@@ -24,7 +29,13 @@ export function UploadPanel() {
 
   return (
     <div
-      className={`upload-panel ${isActive ? 'upload-active' : ''} ${uploadState === 'done' ? 'upload-done' : ''} ${uploadState === 'error' ? 'upload-error' : ''}`}
+      className={[
+        'upload-panel',
+        isActive ? 'upload-active' : '',
+        uploadState === 'done' ? 'upload-done' : '',
+        uploadState === 'error' ? 'upload-error' : '',
+        uploadState === 'idle' && activeDoc ? 'upload-has-doc' : '',
+      ].filter(Boolean).join(' ')}
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       onDragEnter={(e) => e.preventDefault()}
@@ -41,8 +52,12 @@ export function UploadPanel() {
         {uploadState === 'idle' && (
           <>
             <span className="upload-icon">📄</span>
-            <span className="upload-text">Drop PDF or TXT here</span>
-            <span className="upload-subtext">or click to browse</span>
+            <span className="upload-text">
+              {activeDoc ? `Active: ${activeDoc.source_name}` : 'Drop PDF or TXT here'}
+            </span>
+            <span className="upload-subtext">
+              {activeDoc ? 'Drop a new file to switch documents' : 'or click to browse'}
+            </span>
           </>
         )}
         {isActive && (
@@ -55,6 +70,9 @@ export function UploadPanel() {
           <>
             <span className="upload-icon">✅</span>
             <span className="upload-text">{progress}</span>
+            <span className="upload-subtext">
+              {activeDoc ? `Now chatting with: ${activeDoc.source_name}` : 'Document ready!'}
+            </span>
           </>
         )}
         {uploadState === 'error' && (
@@ -65,6 +83,21 @@ export function UploadPanel() {
           </>
         )}
       </label>
+
+      {/* "Try again" button when in error state — resets without forcing a page reload */}
+      {uploadState === 'error' && (
+        <button
+          id="upload-retry-btn"
+          className="upload-retry-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            resetUpload();
+          }}
+          type="button"
+        >
+          Try again
+        </button>
+      )}
     </div>
   );
 }

@@ -3,11 +3,16 @@ import { queryDocuments } from '../api/client';
 import { useChatStore } from '../store/chatStore';
 
 export function useChat() {
-  const { activeDocId, addMessage, setLoading, setError, isLoading } = useChatStore();
+  // Only subscribe to isLoading for re-render — activeDocId is read via
+  // getState() at call time to avoid stale-closure bugs in useCallback.
+  const { addMessage, setLoading, setError, isLoading } = useChatStore();
 
   const sendMessage = useCallback(
     async (question: string) => {
       if (!question.trim() || isLoading) return;
+
+      // Read activeDocId at call time, NOT from a stale closure
+      const activeDocId = useChatStore.getState().activeDocId;
 
       // Add the user message immediately
       addMessage({ role: 'user', content: question });
@@ -38,7 +43,7 @@ export function useChat() {
         setLoading(false);
       }
     },
-    [activeDocId, addMessage, isLoading, setError, setLoading],
+    [addMessage, isLoading, setError, setLoading],
   );
 
   return { sendMessage, isLoading };

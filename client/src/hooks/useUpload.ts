@@ -29,7 +29,9 @@ export function useUpload() {
       setProgress('Uploading file…');
 
       try {
-        const { job_id } = await uploadDocument(file);
+        // doc_id is returned immediately — capture it so we can auto-select
+        // the document once ingestion completes, without waiting for a list refresh.
+        const { job_id, doc_id } = await uploadDocument(file);
         setUploadState('processing');
         setProgress('Processing document…');
 
@@ -42,7 +44,15 @@ export function useUpload() {
           let status;
           try {
             status = await pollIngestStatus(job_id);
-          } catch {
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
+            // A 404 means the server restarted and the in-memory job was lost.
+            // Treat it as a terminal error — ask the user to re-upload.
+            if (msg.toLowerCase().includes('not found') || msg.includes('404')) {
+              throw new Error(
+                'Server restarted during processing — please re-upload the file',
+              );
+            }
             // A transient network blip shouldn't kill an otherwise-healthy
             // ingestion. Tolerate a few consecutive failures, then give up.
             transientErrors += 1;
@@ -56,7 +66,18 @@ export function useUpload() {
           if (status.status === 'completed') {
             setProgress(`✓ ${status.chunks_created ?? 0} chunks stored`);
             setUploadState('done');
+
+            // Refresh the document list in the sidebar first
             await refreshDocuments();
+
+            // ✅ KEY FIX: auto-select the freshly uploaded document so that
+            // the user's next question is immediately scoped to it.
+            // Use getState() to access the store outside of React rendering.
+            useChatStore.getState().setActiveDocId(doc_id);
+
+            // Clear old conversation so the user starts fresh with the new doc
+            useChatStore.getState().clearMessages();
+
             setTimeout(() => setUploadState('idle'), 3000);
             return;
           }
@@ -88,5 +109,11 @@ export function useUpload() {
     [removeDocument],
   );
 
-  return { upload, remove, refreshDocuments, uploadState, uploadError, progress };
+  const resetUpload = useCallback(() => {
+    setUploadState('idle');
+    setUploadError(null);
+    setProgress('');
+  }, []);
+
+  return { upload, remove, refreshDocuments, resetUpload, uploadState, uploadError, progress };
 }
