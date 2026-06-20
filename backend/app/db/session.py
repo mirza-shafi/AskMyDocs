@@ -40,16 +40,23 @@ def _clean_url(url: str) -> tuple[str, dict]:
 
 _clean_db_url, _connect_args = _clean_url(_settings.DATABASE_URL)
 
+_engine_kwargs: dict = {
+    "echo": _settings.DEBUG,
+}
+
+if _clean_db_url.startswith("sqlite"):
+    from sqlalchemy.pool import StaticPool
+    _engine_kwargs["poolclass"] = StaticPool
+    _engine_kwargs["connect_args"] = {"check_same_thread": False, **_connect_args}
+else:
+    _engine_kwargs["connect_args"] = _connect_args
+    _engine_kwargs["pool_size"] = 5        # Conservative for Neon free tier
+    _engine_kwargs["max_overflow"] = 10
+    _engine_kwargs["pool_pre_ping"] = True # Recover from idle connection drops
+    _engine_kwargs["pool_recycle"] = 1800  # Recycle connections after 30 min
+
 # One engine per worker process — reused across all requests.
-engine: AsyncEngine = create_async_engine(
-    _clean_db_url,
-    connect_args=_connect_args,
-    pool_size=5,        # Conservative for Neon free tier
-    max_overflow=10,
-    pool_pre_ping=True, # Recover from idle connection drops
-    pool_recycle=1800,  # Recycle connections after 30 min
-    echo=_settings.DEBUG,
-)
+engine: AsyncEngine = create_async_engine(_clean_db_url, **_engine_kwargs)
 
 # Session factory — expire_on_commit=False keeps objects usable after commit.
 AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
