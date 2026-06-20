@@ -1,4 +1,4 @@
-f"""add parent_id for parent-child retrieval
+"""add parent_id for parent-child retrieval
 
 Revision ID: b1c2d3e4f5a6
 Revises: 8a3295d8fe99
