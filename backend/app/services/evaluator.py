@@ -13,7 +13,20 @@ key already configured in Settings via the ``langchain-groq`` adapter.
 from __future__ import annotations
 
 import math
+import sys
+import types
 from dataclasses import dataclass
+
+# Monkey-patch langchain_community.chat_models.vertexai for ragas < 0.3 compat
+if "langchain_community.chat_models.vertexai" not in sys.modules:
+    dummy_vertexai = types.ModuleType("langchain_community.chat_models.vertexai")
+    dummy_vertexai.ChatVertexAI = type("ChatVertexAI", (), {})
+    if "langchain_community" not in sys.modules:
+        sys.modules["langchain_community"] = types.ModuleType("langchain_community")
+    if "langchain_community.chat_models" not in sys.modules:
+        sys.modules["langchain_community.chat_models"] = types.ModuleType("langchain_community.chat_models")
+    sys.modules["langchain_community.chat_models"].vertexai = dummy_vertexai
+    sys.modules["langchain_community.chat_models.vertexai"] = dummy_vertexai
 
 import structlog
 from datasets import Dataset
