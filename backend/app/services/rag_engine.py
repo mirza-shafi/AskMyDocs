@@ -14,7 +14,7 @@ Pipeline:
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession

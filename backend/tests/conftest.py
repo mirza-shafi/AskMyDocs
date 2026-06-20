@@ -21,7 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.config import Settings
 
-
 # ── Event Loop ────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")

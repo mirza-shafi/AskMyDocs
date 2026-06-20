@@ -12,7 +12,6 @@ import pytest
 from app.core.exceptions import UnsupportedFileTypeError
 from app.services.chunker import TextChunk, chunk_document
 
-
 # ── Chunker Unit Tests ────────────────────────────────────────────────────────
 
 class TestChunkDocument:

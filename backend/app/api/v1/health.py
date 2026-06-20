@@ -11,7 +11,6 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from app.api.deps import AppSettings, DBSession
-from app.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 

@@ -43,7 +43,7 @@ class TestRagasEvalGate:
     async def test_faithfulness_threshold(self, golden_set):
         """Faithfulness score must meet the configured threshold across the golden set."""
         from app.core.config import get_settings
-        from app.services.evaluator import EvalInput, check_thresholds, evaluate_rag
+        from app.services.evaluator import EvalInput, evaluate_rag
 
         settings = get_settings()
         faithfulness_scores = []

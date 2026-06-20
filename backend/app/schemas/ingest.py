@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class IngestStatus(str, Enum):
+class IngestStatus(StrEnum):
     """Possible states of a background ingestion job."""
 
     PENDING = "pending"

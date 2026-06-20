@@ -21,7 +21,6 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import DBSession
 from app.models.document import DocumentChunk

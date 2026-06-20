@@ -67,7 +67,7 @@ async def hybrid_search(
     Returns:
         List of ``RetrievedChunk`` objects sorted by RRF score (descending).
     """
-    settings = get_settings()
+    get_settings()
 
     # ── Build optional WHERE clause ───────────────────────────────────────
     base_filter = (

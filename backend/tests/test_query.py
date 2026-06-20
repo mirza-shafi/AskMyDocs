@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import pytest
 
-
 # ── RRF Logic Unit Test ───────────────────────────────────────────────────────
 
 class TestRRFFusion:
@@ -47,7 +46,6 @@ class TestQueryEndpoint:
 
         from app.main import app
 
-        mock_sources = []  # Empty sources — RAG will handle gracefully
 
         with patch("app.services.rag_engine.run", new_callable=AsyncMock) as mock_run:
             from app.schemas.query import SourceChunk
@@ -96,13 +94,13 @@ class TestQueryEndpoint:
     @pytest.mark.asyncio
     async def test_health_endpoint_returns_ok(self):
         """GET /health should return 200."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         from fastapi.testclient import TestClient
 
         from app.main import app
 
-        with patch("app.api.v1.health.get_db") as mock_db:
+        with patch("app.api.v1.health.get_db"):
             client = TestClient(app)
             response = client.get("/health")
         # Health may return 200 or 503 depending on DB connectivity in test
