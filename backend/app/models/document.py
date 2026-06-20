@@ -52,6 +52,12 @@ class DocumentChunk(Base):
         index=True,
         comment="Parent document identifier",
     )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+        comment="Parent chunk id (NULL for parent/context chunks; set for children)",
+    )
     source_name: Mapped[str] = mapped_column(
         String(512),
         nullable=False,

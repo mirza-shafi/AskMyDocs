@@ -58,8 +58,13 @@ class Settings(BaseSettings):
     RERANKER_MODEL: str = Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2")
 
     # ── Chunking ──────────────────────────────────────────────────────────
+    # Parent chunks provide broad context to the LLM; child chunks are smaller,
+    # precision-focused units that are embedded and searched. Retrieved children
+    # are expanded back to their parent for generation (parent-child retrieval).
     CHUNK_SIZE: int = Field(default=512, ge=64, le=2048)
     CHUNK_OVERLAP: int = Field(default=64, ge=0, le=256)
+    CHILD_CHUNK_SIZE: int = Field(default=256, ge=32, le=1024)
+    CHILD_CHUNK_OVERLAP: int = Field(default=32, ge=0, le=256)
 
     # ── Retrieval ─────────────────────────────────────────────────────────
     TOP_K_RETRIEVAL: int = Field(default=20, ge=5, le=100)

@@ -43,6 +43,7 @@ class RetrievedChunk:
     chunk_index: int
     content: str
     rrf_score: float
+    parent_id: uuid.UUID | None = None
 
 
 async def hybrid_search(
@@ -83,6 +84,7 @@ async def hybrid_search(
             DocumentChunk.source_name,
             DocumentChunk.chunk_index,
             DocumentChunk.content,
+            DocumentChunk.parent_id,
         )
         .where(DocumentChunk.embedding.is_not(None))
         .where(base_filter)
@@ -99,6 +101,7 @@ async def hybrid_search(
             DocumentChunk.source_name,
             DocumentChunk.chunk_index,
             DocumentChunk.content,
+            DocumentChunk.parent_id,
         )
         .where(DocumentChunk.fts_vector.op("@@")(ts_query))
         .where(base_filter)
@@ -139,12 +142,59 @@ async def hybrid_search(
             chunk_index=chunk_data[cid].chunk_index,
             content=chunk_data[cid].content,
             rrf_score=rrf_scores[cid],
+            parent_id=chunk_data[cid].parent_id,
         )
         for cid in sorted_ids
     ]
 
     logger.info("Hybrid retrieval complete", total_candidates=len(results))
     return results
+
+
+async def fetch_parents(
+    db: AsyncSession,
+    parent_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, RetrievedChunk]:
+    """Fetch parent (context) chunks by id for parent-child expansion.
+
+    Retrieved children carry a ``parent_id``; this resolves those ids to the
+    larger parent chunks whose full text is handed to the LLM.
+
+    Args:
+        db: Active async database session.
+        parent_ids: Parent chunk ids to fetch.
+
+    Returns:
+        Mapping of parent ``id`` → ``RetrievedChunk`` (rrf_score is unused, 0.0).
+    """
+    if not parent_ids:
+        return {}
+
+    rows = (
+        await db.execute(
+            select(
+                DocumentChunk.id,
+                DocumentChunk.doc_id,
+                DocumentChunk.source_name,
+                DocumentChunk.chunk_index,
+                DocumentChunk.content,
+                DocumentChunk.parent_id,
+            ).where(DocumentChunk.id.in_(parent_ids))
+        )
+    ).fetchall()
+
+    return {
+        row.id: RetrievedChunk(
+            id=row.id,
+            doc_id=row.doc_id,
+            source_name=row.source_name,
+            chunk_index=row.chunk_index,
+            content=row.content,
+            rrf_score=0.0,
+            parent_id=row.parent_id,
+        )
+        for row in rows
+    }
 
 
 async def delete_document_chunks(db: AsyncSession, doc_id: str) -> int:
@@ -177,7 +227,10 @@ async def list_documents(db: AsyncSession) -> list[dict]:
             DocumentChunk.doc_id,
             DocumentChunk.source_name,
             func.count(DocumentChunk.id).label("chunk_count"),
-        ).group_by(DocumentChunk.doc_id, DocumentChunk.source_name)
+        )
+        # Count only searchable child chunks (parents have parent_id IS NULL)
+        .where(DocumentChunk.parent_id.is_not(None))
+        .group_by(DocumentChunk.doc_id, DocumentChunk.source_name)
     )
     return [
         {"doc_id": r.doc_id, "source_name": r.source_name, "chunk_count": r.chunk_count}

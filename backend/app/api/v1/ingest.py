@@ -33,7 +33,7 @@ from app.schemas.ingest import (
     IngestStatusResponse,
 )
 from app.services import embedder
-from app.services.chunker import chunk_document
+from app.services.chunker import chunk_document_hierarchical
 from app.services.retriever import delete_document_chunks, list_documents
 
 logger = structlog.get_logger(__name__)
@@ -69,38 +69,67 @@ async def _process_document(
 
     chunks_created = 0
     try:
-        # Step 1: Chunk the document
-        text_chunks = chunk_document(file_bytes, source_name)
+        # Step 1: Structure-aware hierarchical chunking (parents + children)
+        parents = chunk_document_hierarchical(file_bytes, source_name)
 
-        if not text_chunks:
+        if not parents:
             raise ValueError("Document produced no text chunks — may be empty or image-only PDF")
 
-        # Step 2: Batch embed all chunks
-        texts = [c.content for c in text_chunks]
-        vectors = await embedder.embed_batch(texts)
+        # Step 2: Batch-embed every child across all parents in a single call.
+        # Parents are NOT embedded — they only provide context to the LLM.
+        all_child_texts = [c.content for p in parents for c in p.children]
+        if not all_child_texts:
+            raise ValueError("Document produced no child chunks to embed")
+        child_vectors = await embedder.embed_batch(all_child_texts)
 
-        # Step 3: Persist chunks to the database
+        # Step 3: Persist parents (context) and children (searchable) to the DB.
         async with db_session_factory() as session:
-            for chunk, vector in zip(text_chunks, vectors):
-                # Build tsvector from content using PostgreSQL's to_tsvector
-                db_chunk = DocumentChunk(
-                    doc_id=doc_id,
-                    source_name=source_name,
-                    chunk_index=chunk.chunk_index,
-                    content=chunk.content,
-                    embedding=vector,
-                    fts_vector=func.to_tsvector("english", chunk.content),
-                    metadata_=chunk.metadata,
+            vi = 0
+            parents_created = 0
+            for parent in parents:
+                parent_uuid = uuid.uuid4()
+                # Parent / context chunk: no embedding, no FTS — never retrieved
+                # directly, only fetched to expand a matched child.
+                session.add(
+                    DocumentChunk(
+                        id=parent_uuid,
+                        doc_id=doc_id,
+                        parent_id=None,
+                        source_name=source_name,
+                        chunk_index=parent.chunk_index,
+                        content=parent.content,
+                        embedding=None,
+                        fts_vector=None,
+                        metadata_=parent.metadata,
+                    )
                 )
-                session.add(db_chunk)
-                chunks_created += 1
+                parents_created += 1
+
+                for child in parent.children:
+                    vector = child_vectors[vi]
+                    vi += 1
+                    # Child chunk: embedded + FTS-indexed, linked to its parent.
+                    session.add(
+                        DocumentChunk(
+                            doc_id=doc_id,
+                            parent_id=parent_uuid,
+                            source_name=source_name,
+                            chunk_index=child.chunk_index,
+                            content=child.content,
+                            embedding=vector,
+                            fts_vector=func.to_tsvector("english", child.content),
+                            metadata_=child.metadata,
+                        )
+                    )
+                    chunks_created += 1
             await session.commit()
 
         logger.info(
             "Ingestion complete",
             job_id=job_id,
             doc_id=doc_id,
-            chunks=chunks_created,
+            parents=parents_created,
+            children=chunks_created,
         )
 
         async with _jobs_lock:

@@ -84,7 +84,7 @@ async def run(
             latency_ms=_elapsed_ms(t_start),
         )
 
-    # ── Step 3: Cross-encoder reranking ───────────────────────────────────
+    # ── Step 3: Cross-encoder reranking (on precise child chunks) ──────────
     passages = [c.content for c in candidates]
     ranked = await reranker.rerank(
         query=question,
@@ -92,25 +92,40 @@ async def run(
         top_n=settings.TOP_N_RERANK,
     )
 
-    top_chunks = [candidates[idx] for idx, _ in ranked]
-    top_scores = {idx: score for idx, score in ranked}
+    # ── Step 4: Parent-child expansion ─────────────────────────────────────
+    # Children give retrieval precision; their parents give the LLM broader
+    # context. Resolve each reranked child to its parent, de-duplicating
+    # parents while preserving rerank order so [Sn] maps 1:1 with context.
+    ranked_children = [(candidates[idx], score) for idx, score in ranked]
+    parent_ids = [c.parent_id for c, _ in ranked_children if c.parent_id is not None]
+    parents = await retriever.fetch_parents(db, parent_ids)
 
-    # ── Step 4: Build context and generate ────────────────────────────────
-    context_blocks = [chunk.content for chunk in top_chunks]
-    answer = await llm.generate_answer(question=question, context_blocks=context_blocks)
-
-    # ── Step 5: Assemble source attribution ───────────────────────────────
-    sources = [
-        SourceChunk(
-            chunk_id=str(candidates[idx].id),
-            doc_id=candidates[idx].doc_id,
-            source_name=candidates[idx].source_name,
-            chunk_index=candidates[idx].chunk_index,
-            content=candidates[idx].content,
-            rerank_score=round(score, 4),
+    context_blocks: list[str] = []
+    sources: list[SourceChunk] = []
+    seen: set = set()
+    for child, score in ranked_children:
+        parent = parents.get(child.parent_id) if child.parent_id else None
+        ctx_chunk = parent if parent is not None else child
+        # Skip blank context (e.g. image-only PDFs that yielded no text).
+        if not ctx_chunk.content.strip():
+            continue
+        if ctx_chunk.id in seen:
+            continue
+        seen.add(ctx_chunk.id)
+        context_blocks.append(ctx_chunk.content)
+        sources.append(
+            SourceChunk(
+                chunk_id=str(ctx_chunk.id),
+                doc_id=ctx_chunk.doc_id,
+                source_name=ctx_chunk.source_name,
+                chunk_index=ctx_chunk.chunk_index,
+                content=ctx_chunk.content,
+                rerank_score=round(score, 4),
+            )
         )
-        for idx, score in ranked
-    ]
+
+    # ── Step 5: Generate the cited answer from parent context ──────────────
+    answer = await llm.generate_answer(question=question, context_blocks=context_blocks)
 
     elapsed = _elapsed_ms(t_start)
     logger.info(
