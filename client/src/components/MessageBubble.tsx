@@ -100,9 +100,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               <div key={source.chunk_id} className="source-card">
                 <span className="source-badge">S{i + 1}</span>
                 <span className="source-name">{source.source_name}</span>
-                <span className="source-score">
-                  {relevancePct(source.rerank_score)}%
-                </span>
+                {source.rerank_score != null && (
+                  <span className="source-score">
+                    {relevancePct(source.rerank_score)}%
+                  </span>
+                )}
                 <p className="source-preview">{source.content.slice(0, 160)}…</p>
               </div>
             ))}

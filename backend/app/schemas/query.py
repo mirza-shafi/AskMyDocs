@@ -48,7 +48,7 @@ class SourceChunk(BaseModel):
     source_name: str
     chunk_index: int
     content: str
-    rerank_score: float
+    rerank_score: float | None = None
 
 
 class EvalScores(BaseModel):

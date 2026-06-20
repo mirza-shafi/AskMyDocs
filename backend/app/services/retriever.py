@@ -197,6 +197,62 @@ async def fetch_parents(
     }
 
 
+async def sample_parents(
+    db: AsyncSession,
+    doc_id_filter: str | None,
+    limit: int,
+) -> list[RetrievedChunk]:
+    """Return a representative, evenly-spread sample of parent (context) chunks.
+
+    Used for document-overview / summary questions, where similarity search
+    against a vague query ("explain this document") retrieves poorly. Sampling
+    parents across the document gives the LLM broad coverage to summarize.
+
+    Args:
+        db: Active async database session.
+        doc_id_filter: Restrict to a single document, or sample across all.
+        limit: Maximum number of parent chunks to return.
+
+    Returns:
+        Up to ``limit`` parent chunks ordered by document position.
+    """
+    q = select(
+        DocumentChunk.id,
+        DocumentChunk.doc_id,
+        DocumentChunk.source_name,
+        DocumentChunk.chunk_index,
+        DocumentChunk.content,
+        DocumentChunk.parent_id,
+    ).where(DocumentChunk.parent_id.is_(None))  # parents only
+    if doc_id_filter:
+        q = q.where(DocumentChunk.doc_id == doc_id_filter)
+    q = q.order_by(DocumentChunk.doc_id, DocumentChunk.chunk_index)
+
+    rows = (await db.execute(q)).fetchall()
+    if not rows:
+        return []
+
+    # Evenly sample across the document so coverage is broad, not just the start.
+    if len(rows) <= limit:
+        selected = rows
+    else:
+        step = len(rows) / limit
+        selected = [rows[int(i * step)] for i in range(limit)]
+
+    return [
+        RetrievedChunk(
+            id=r.id,
+            doc_id=r.doc_id,
+            source_name=r.source_name,
+            chunk_index=r.chunk_index,
+            content=r.content,
+            rrf_score=0.0,
+            parent_id=r.parent_id,
+        )
+        for r in selected
+    ]
+
+
 async def delete_document_chunks(db: AsyncSession, doc_id: str) -> int:
     """Delete all chunks belonging to a document.
 

@@ -61,8 +61,53 @@ async def run(
     settings = get_settings()
     t_start = time.perf_counter()
 
-    # ── Step 1: Embed the query ───────────────────────────────────────────
     logger.info("RAG pipeline started", question_preview=question[:80])
+
+    # ── Overview / summary questions ───────────────────────────────────────
+    # "Explain this document", "summarize", etc. retrieve poorly via semantic
+    # similarity (the query is vague). Instead, feed the LLM a broad, evenly
+    # sampled set of the document's parent chunks so it can summarize.
+    if _is_overview_question(question):
+        sampled = await retriever.sample_parents(
+            db=db,
+            doc_id_filter=doc_id_filter,
+            limit=max(settings.TOP_N_RERANK + 3, 6),
+        )
+        if sampled:
+            context_blocks = [c.content for c in sampled]
+            llm_question = (
+                f"{question}\n\n(Give a clear overview of what this document is "
+                "about: its purpose, the kind of content it contains, and its "
+                "main topics. Base the overview only on the context provided.)"
+            )
+            answer = await llm.generate_answer(
+                question=llm_question, context_blocks=context_blocks
+            )
+            sources = [
+                SourceChunk(
+                    chunk_id=str(c.id),
+                    doc_id=c.doc_id,
+                    source_name=c.source_name,
+                    chunk_index=c.chunk_index,
+                    content=c.content,
+                    rerank_score=None,  # representative sample, not relevance-ranked
+                )
+                for c in sampled
+            ]
+            elapsed = _elapsed_ms(t_start)
+            logger.info(
+                "RAG overview complete",
+                latency_ms=round(elapsed, 1),
+                sampled_parents=len(sampled),
+            )
+            return RAGResult(
+                question=question,
+                answer=answer,
+                sources=sources,
+                latency_ms=round(elapsed, 1),
+            )
+
+    # ── Step 1: Embed the query ───────────────────────────────────────────
     query_vector = await embedder.embed_text(question)
 
     # ── Step 2: Hybrid retrieval + RRF ────────────────────────────────────
@@ -145,3 +190,42 @@ async def run(
 def _elapsed_ms(t_start: float) -> float:
     """Return elapsed milliseconds since ``t_start``."""
     return (time.perf_counter() - t_start) * 1000
+
+
+# Phrases that signal a document-level overview/summary request rather than a
+# specific factual question.
+_OVERVIEW_PATTERNS = (
+    "explain this",
+    "explain the document",
+    "explain the pdf",
+    "explain the file",
+    "what is this",
+    "what's this",
+    "whats this",
+    "what is in this",
+    "what's in this",
+    "whats in this",
+    "what is the document",
+    "what is this document",
+    "what is this pdf",
+    "what is this file",
+    "what does this document",
+    "what does this pdf",
+    "tell me about this",
+    "about this document",
+    "about this pdf",
+    "about this file",
+    "summarize",
+    "summary",
+    "overview",
+    "describe this",
+    "give me a rundown",
+    "tldr",
+    "tl;dr",
+)
+
+
+def _is_overview_question(question: str) -> bool:
+    """Return True if the question asks for a document overview/summary."""
+    q = question.lower()
+    return any(pattern in q for pattern in _OVERVIEW_PATTERNS)

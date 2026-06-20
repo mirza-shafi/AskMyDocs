@@ -6,7 +6,7 @@ export interface SourceChunk {
   source_name: string;
   chunk_index: number;
   content: string;
-  rerank_score: number;
+  rerank_score: number | null;
 }
 
 export interface EvalScores {
