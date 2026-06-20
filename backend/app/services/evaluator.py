@@ -17,15 +17,16 @@ import sys
 import types
 from dataclasses import dataclass
 
-# Monkey-patch langchain_community.chat_models.vertexai for ragas < 0.3 compat
+# Import the real package first so we don't shadow it
+try:
+    import langchain_community.chat_models
+except ImportError:
+    pass
+
+# Monkey-patch ONLY the missing vertexai module for ragas < 0.3 compat
 if "langchain_community.chat_models.vertexai" not in sys.modules:
     dummy_vertexai = types.ModuleType("langchain_community.chat_models.vertexai")
     dummy_vertexai.ChatVertexAI = type("ChatVertexAI", (), {})
-    if "langchain_community" not in sys.modules:
-        sys.modules["langchain_community"] = types.ModuleType("langchain_community")
-    if "langchain_community.chat_models" not in sys.modules:
-        sys.modules["langchain_community.chat_models"] = types.ModuleType("langchain_community.chat_models")
-    sys.modules["langchain_community.chat_models"].vertexai = dummy_vertexai
     sys.modules["langchain_community.chat_models.vertexai"] = dummy_vertexai
 
 import structlog
