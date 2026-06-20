@@ -12,6 +12,7 @@ key already configured in Settings via the ``langchain-groq`` adapter.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import structlog
@@ -149,8 +150,16 @@ def check_thresholds(scores: EvalScores) -> tuple[bool, list[str]]:
 
 
 def _safe_float(value: object) -> float | None:
-    """Coerce a value to float, returning None on failure."""
+    """Coerce a value to float, returning None on failure or NaN.
+
+    Ragas yields NaN for metrics it cannot compute. Since ``NaN < threshold``
+    is always False, a NaN would silently PASS the CI gate — so map it to None
+    (treated as "not computed") instead.
+    """
     try:
-        return float(value)  # type: ignore[arg-type]
+        result = float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+    if math.isnan(result):
+        return None
+    return result

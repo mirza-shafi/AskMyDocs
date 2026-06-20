@@ -253,6 +253,52 @@ async def sample_parents(
     ]
 
 
+async def fetch_all_parents(
+    db: AsyncSession,
+    doc_id_filter: str | None,
+    max_parents: int,
+) -> list[RetrievedChunk]:
+    """Return parent chunks in document order (contiguous, not sampled).
+
+    Used for exhaustive "list everything" questions where every item matters.
+    Unlike ``sample_parents``, this never skips chunks — it returns the first
+    ``max_parents`` parents in order so coverage from the start is complete.
+
+    Args:
+        db: Active async database session.
+        doc_id_filter: Restrict to a single document, or span all.
+        max_parents: Hard cap on parents returned (context-size safety).
+
+    Returns:
+        Up to ``max_parents`` parent chunks ordered by document position.
+    """
+    q = select(
+        DocumentChunk.id,
+        DocumentChunk.doc_id,
+        DocumentChunk.source_name,
+        DocumentChunk.chunk_index,
+        DocumentChunk.content,
+        DocumentChunk.parent_id,
+    ).where(DocumentChunk.parent_id.is_(None))  # parents only
+    if doc_id_filter:
+        q = q.where(DocumentChunk.doc_id == doc_id_filter)
+    q = q.order_by(DocumentChunk.doc_id, DocumentChunk.chunk_index).limit(max_parents)
+
+    rows = (await db.execute(q)).fetchall()
+    return [
+        RetrievedChunk(
+            id=r.id,
+            doc_id=r.doc_id,
+            source_name=r.source_name,
+            chunk_index=r.chunk_index,
+            content=r.content,
+            rrf_score=0.0,
+            parent_id=r.parent_id,
+        )
+        for r in rows
+    ]
+
+
 async def delete_document_chunks(db: AsyncSession, doc_id: str) -> int:
     """Delete all chunks belonging to a document.
 

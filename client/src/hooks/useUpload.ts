@@ -35,9 +35,23 @@ export function useUpload() {
 
         // Poll for job completion
         const MAX_POLLS = 60;
+        let transientErrors = 0;
         for (let i = 0; i < MAX_POLLS; i++) {
           await new Promise((r) => setTimeout(r, 2000)); // 2s interval
-          const status = await pollIngestStatus(job_id);
+
+          let status;
+          try {
+            status = await pollIngestStatus(job_id);
+          } catch {
+            // A transient network blip shouldn't kill an otherwise-healthy
+            // ingestion. Tolerate a few consecutive failures, then give up.
+            transientErrors += 1;
+            if (transientErrors >= 5) {
+              throw new Error('Lost connection while processing document');
+            }
+            continue;
+          }
+          transientErrors = 0;
 
           if (status.status === 'completed') {
             setProgress(`✓ ${status.chunks_created ?? 0} chunks stored`);

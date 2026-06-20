@@ -63,6 +63,43 @@ async def run(
 
     logger.info("RAG pipeline started", question_preview=question[:80])
 
+    # ── Exhaustive ("give me ALL the questions/items") questions ───────────
+    # These cannot be answered from a top-N similarity slice — the user wants
+    # everything. Feed the LLM the full document (all parent chunks, in order)
+    # and ask it to list every item completely.
+    if _is_exhaustive_question(question):
+        all_parents = await retriever.fetch_all_parents(
+            db=db,
+            doc_id_filter=doc_id_filter,
+            max_parents=_MAX_FULL_DOC_PARENTS,
+        )
+        if all_parents:
+            context_blocks = [c.content for c in all_parents]
+            llm_question = (
+                f"{question}\n\n(The context below is the FULL document, in "
+                "order. List EVERY matching item completely, preserving the "
+                "original wording and order. Do not omit, summarize, or "
+                "truncate any item. Base your answer only on the context.)"
+            )
+            answer = await llm.generate_answer(
+                question=llm_question,
+                context_blocks=context_blocks,
+                max_tokens=4096,  # allow long, complete lists
+            )
+            sources = _sample_sources(all_parents)
+            elapsed = _elapsed_ms(t_start)
+            logger.info(
+                "RAG exhaustive complete",
+                latency_ms=round(elapsed, 1),
+                parents_used=len(all_parents),
+            )
+            return RAGResult(
+                question=question,
+                answer=answer,
+                sources=sources,
+                latency_ms=round(elapsed, 1),
+            )
+
     # ── Overview / summary questions ───────────────────────────────────────
     # "Explain this document", "summarize", etc. retrieve poorly via semantic
     # similarity (the query is vague). Instead, feed the LLM a broad, evenly
@@ -83,17 +120,7 @@ async def run(
             answer = await llm.generate_answer(
                 question=llm_question, context_blocks=context_blocks
             )
-            sources = [
-                SourceChunk(
-                    chunk_id=str(c.id),
-                    doc_id=c.doc_id,
-                    source_name=c.source_name,
-                    chunk_index=c.chunk_index,
-                    content=c.content,
-                    rerank_score=None,  # representative sample, not relevance-ranked
-                )
-                for c in sampled
-            ]
+            sources = _sample_sources(sampled)
             elapsed = _elapsed_ms(t_start)
             logger.info(
                 "RAG overview complete",
@@ -229,3 +256,54 @@ def _is_overview_question(question: str) -> bool:
     """Return True if the question asks for a document overview/summary."""
     q = question.lower()
     return any(pattern in q for pattern in _OVERVIEW_PATTERNS)
+
+
+# Upper bound on parent chunks fed to the LLM for a full-document answer.
+# llama-3.3-70b-versatile has a large context window, but cap to stay safe.
+_MAX_FULL_DOC_PARENTS = 120
+
+# Phrases that signal the user wants EVERY matching item (not a top-N slice):
+# e.g. "give me all the questions", "list all", "every question".
+_EXHAUSTIVE_PATTERNS = (
+    "all question",
+    "all the question",
+    "all of the question",
+    "every question",
+    "all mcq",
+    "all the mcq",
+    "list all",
+    "list every",
+    "list the questions",
+    "list out",
+    "give me all",
+    "give all",
+    "show all",
+    "show me all",
+    "all the items",
+    "all items",
+    "entire list",
+    "full list",
+    "complete list",
+    "each question",
+)
+
+
+def _is_exhaustive_question(question: str) -> bool:
+    """Return True if the question asks to list ALL items in the document."""
+    q = question.lower()
+    return any(pattern in q for pattern in _EXHAUSTIVE_PATTERNS)
+
+
+def _sample_sources(chunks: list) -> list[SourceChunk]:
+    """Build SourceChunk list for sampled/full-doc parents (no relevance rank)."""
+    return [
+        SourceChunk(
+            chunk_id=str(c.id),
+            doc_id=c.doc_id,
+            source_name=c.source_name,
+            chunk_index=c.chunk_index,
+            content=c.content,
+            rerank_score=None,  # representative sample, not relevance-ranked
+        )
+        for c in chunks
+    ]

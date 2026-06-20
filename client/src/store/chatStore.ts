@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import type { DocumentItem, Message } from '../types';
 
+/** Generate a unique id. crypto.randomUUID is only available in secure
+ *  contexts (HTTPS/localhost); fall back to a random string otherwise. */
+function makeId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 interface ChatState {
   // Messages
   messages: Message[];

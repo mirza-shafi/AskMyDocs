@@ -111,7 +111,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {message.latency_ms && (
+        {message.latency_ms != null && (
           <span className="message-latency">{message.latency_ms.toFixed(0)}ms</span>
         )}
       </div>

@@ -19,7 +19,7 @@ import uuid
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, UploadFile
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,6 +84,16 @@ async def _process_document(
 
         # Step 3: Persist parents (context) and children (searchable) to the DB.
         async with db_session_factory() as session:
+            # Idempotent re-ingest: clear any existing chunks for this doc_id
+            # first, so re-uploading the same file replaces rather than
+            # duplicates its chunks (doc_id is derived from the filename).
+            removed = await delete_document_chunks(session, doc_id)
+            if removed:
+                logger.info(
+                    "Replacing existing document chunks",
+                    doc_id=doc_id,
+                    removed=removed,
+                )
             vi = 0
             parents_created = 0
             for parent in parents:
@@ -170,7 +180,26 @@ async def ingest_document(
         ``IngestResponse`` with job_id and doc_id for status polling.
     """
     filename = file.filename or "unknown.txt"
+
+    # Validate file type up-front so unsupported uploads fail fast with 422
+    # instead of being accepted (202) and then failing silently in the worker.
+    from app.core.exceptions import UnsupportedFileTypeError
+
+    ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in {".pdf", ".txt"}:
+        raise UnsupportedFileTypeError(filename)
+
     file_bytes = await file.read()
+
+    # Reject oversized uploads (protect worker memory).
+    max_bytes = 25 * 1024 * 1024  # 25 MB
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({len(file_bytes) // (1024 * 1024)} MB). Max is 25 MB.",
+        )
+    if not file_bytes:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
 
     # Derive a stable doc_id from the filename (slug + short hash)
     name_hash = hashlib.md5(filename.encode()).hexdigest()[:8]

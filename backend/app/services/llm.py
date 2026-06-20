@@ -40,6 +40,18 @@ GROUNDING RULES:
   clear, well-organized overview of what the context actually contains.
 """
 
+# Reuse a single AsyncGroq client (and its underlying httpx connection pool)
+# across requests instead of constructing one per call, which leaks connections.
+_client: AsyncGroq | None = None
+
+
+def _get_client() -> AsyncGroq:
+    """Return a lazily-created, shared AsyncGroq client."""
+    global _client  # noqa: PLW0603
+    if _client is None:
+        _client = AsyncGroq(api_key=get_settings().GROQ_API_KEY)
+    return _client
+
 
 def _build_user_message(question: str, context_blocks: list[str]) -> str:
     """Assemble the user-turn message with numbered context chunks.
@@ -65,12 +77,15 @@ def _build_user_message(question: str, context_blocks: list[str]) -> str:
 async def generate_answer(
     question: str,
     context_blocks: list[str],
+    max_tokens: int = 1024,
 ) -> str:
     """Generate a grounded, cited answer using the Groq LLM.
 
     Args:
         question: The user's question.
         context_blocks: Ordered list of context passages (top-N after reranking).
+        max_tokens: Maximum tokens in the completion. Raise this for exhaustive
+            "list everything" answers that would otherwise be truncated.
 
     Returns:
         The LLM-generated answer string with inline citations.
@@ -79,7 +94,7 @@ async def generate_answer(
         LLMError: If the Groq API call fails or returns an empty response.
     """
     settings = get_settings()
-    client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+    client = _get_client()
 
     user_message = _build_user_message(question, context_blocks)
 
@@ -97,7 +112,7 @@ async def generate_answer(
                 {"role": "user", "content": user_message},
             ],
             temperature=0.1,   # Low temperature for factual, deterministic output
-            max_tokens=1024,
+            max_tokens=max_tokens,
         )
     except Exception as exc:
         raise LLMError(f"Groq API call failed: {exc}") from exc

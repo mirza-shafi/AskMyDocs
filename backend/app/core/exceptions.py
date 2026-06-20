@@ -109,7 +109,21 @@ def register_exception_handlers(app: FastAPI) -> None:
             path=request.url.path,
             exc_info=exc,
         )
+        # The base-Exception (500) handler runs in Starlette's outermost
+        # ServerErrorMiddleware, OUTSIDE CORSMiddleware, so error responses
+        # would otherwise lack CORS headers and the browser would see an
+        # opaque "network error" instead of the JSON body. Re-add them here.
+        from app.core.config import get_settings
+
+        headers: dict[str, str] = {}
+        origin = request.headers.get("origin")
+        if origin and origin in get_settings().cors_origins_list:
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            headers["Vary"] = "Origin"
+
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"error": "Internal server error", "request_id": request_id},
+            headers=headers,
         )

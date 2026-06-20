@@ -42,9 +42,10 @@ export const queryDocuments = async (payload: QueryRequest): Promise<QueryRespon
 export const uploadDocument = async (file: File): Promise<IngestResponse> => {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await api.post<IngestResponse>('/api/v1/ingest', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  // Do NOT set Content-Type manually: axios derives the correct
+  // multipart/form-data header *with boundary* from the FormData instance.
+  // Hard-coding it drops the boundary and breaks server-side parsing.
+  const { data } = await api.post<IngestResponse>('/api/v1/ingest', formData);
   return data;
 };
 
