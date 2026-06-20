@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Message } from '../types';
 import { CitationBadge } from './CitationBadge';
 
@@ -5,33 +6,73 @@ interface MessageBubbleProps {
   message: Message;
 }
 
+type Sources = Message['sources'];
+
+/** Render a single line of text: resolve [Sn] citations and **bold** spans. */
+function renderInline(text: string, sources: Sources, keyPrefix: string) {
+  const tokens = text.split(/(\[S\d+\]|\*\*[^*]+\*\*)/g);
+  return tokens.map((tok, i) => {
+    const key = `${keyPrefix}-${i}`;
+    const cite = tok.match(/^\[S(\d+)\]$/);
+    if (cite) {
+      const idx = parseInt(cite[1], 10) - 1;
+      const source = sources?.[idx];
+      return source ? (
+        <CitationBadge key={key} index={idx + 1} source={source} />
+      ) : (
+        <span key={key} className="citation-unknown">{tok}</span>
+      );
+    }
+    const bold = tok.match(/^\*\*([^*]+)\*\*$/);
+    if (bold) return <strong key={key}>{bold[1]}</strong>;
+    if (!tok) return null;
+    return <span key={key}>{tok}</span>;
+  });
+}
+
+/** Render an assistant answer as readable blocks: paragraphs + bullet lists. */
+function renderAnswer(content: string, sources: Sources) {
+  const lines = content.split('\n');
+  const blocks: ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    const items = bullets;
+    bullets = [];
+    blocks.push(
+      <ul key={`ul-${blocks.length}`} className="answer-list">
+        {items.map((item, i) => (
+          <li key={i}>{renderInline(item, sources, `li-${blocks.length}-${i}`)}</li>
+        ))}
+      </ul>,
+    );
+  };
+
+  lines.forEach((raw) => {
+    const line = raw.trim();
+    if (!line) {
+      flushBullets();
+      return;
+    }
+    const bullet = line.match(/^[*\-•]\s+(.*)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+    } else {
+      flushBullets();
+      blocks.push(
+        <p key={`p-${blocks.length}`}>{renderInline(line, sources, `p-${blocks.length}`)}</p>,
+      );
+    }
+  });
+  flushBullets();
+
+  return <>{blocks}</>;
+}
+
 /** Renders a single chat message bubble with optional source citations. */
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
-
-  // Replace [S1], [S2] etc. with inline citation badges
-  const renderAnswer = (content: string, sources: Message['sources']) => {
-    if (!sources?.length) return <p>{content}</p>;
-
-    const parts = content.split(/(\[S\d+\])/g);
-    return (
-      <p>
-        {parts.map((part, i) => {
-          const match = part.match(/\[S(\d+)\]/);
-          if (match) {
-            const idx = parseInt(match[1], 10) - 1;
-            const source = sources[idx];
-            return source ? (
-              <CitationBadge key={i} index={idx + 1} source={source} />
-            ) : (
-              <span key={i} className="citation-unknown">{part}</span>
-            );
-          }
-          return <span key={i}>{part}</span>;
-        })}
-      </p>
-    );
-  };
 
   return (
     <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
