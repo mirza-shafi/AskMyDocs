@@ -192,6 +192,27 @@ def _merge_fragments(
     return [c for c in chunks if c]
 
 
+# Matches C0 control characters that PostgreSQL text columns cannot store
+# (notably NUL / U+0000), while preserving tab (\t), newline (\n) and CR (\r).
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _sanitize_text(text: str) -> str:
+    """Strip NUL bytes and disallowed control characters from extracted text.
+
+    PostgreSQL rejects U+0000 in ``text``/``varchar`` columns; some PDFs embed
+    stray nulls (common with non-Latin scripts), which otherwise crash the
+    INSERT with ``CharacterNotInRepertoireError``.
+
+    Args:
+        text: Raw extracted text.
+
+    Returns:
+        Text with NUL and other C0 control characters removed.
+    """
+    return _CONTROL_CHARS_RE.sub("", text)
+
+
 def _split_text(
     text: str,
     chunk_size: int,
@@ -215,6 +236,10 @@ def _split_text(
     Returns:
         List of non-empty text chunks.
     """
+    # Remove NUL bytes and other C0 control chars (except tab/newline/CR).
+    # PostgreSQL text columns reject U+0000, and some PDFs (e.g. non-Latin
+    # scripts) embed stray nulls during extraction.
+    text = _sanitize_text(text)
     # Normalise whitespace — collapse 3+ consecutive newlines into one blank line.
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
 

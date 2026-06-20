@@ -8,6 +8,14 @@ interface MessageBubbleProps {
 
 type Sources = Message['sources'];
 
+/** Convert a raw cross-encoder logit into a 0-100 relevance percentage.
+ *  Cross-encoder scores are unbounded logits (often negative), so a plain
+ *  ×100 produces nonsensical values like -1063%. A sigmoid maps them to a
+ *  meaningful 0-1 relevance probability. */
+function relevancePct(score: number): number {
+  return Math.round((1 / (1 + Math.exp(-score))) * 100);
+}
+
 /** Render a single line of text: resolve [Sn] citations and **bold** spans. */
 function renderInline(text: string, sources: Sources, keyPrefix: string) {
   const tokens = text.split(/(\[S\d+\]|\*\*[^*]+\*\*)/g);
@@ -93,7 +101,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 <span className="source-badge">S{i + 1}</span>
                 <span className="source-name">{source.source_name}</span>
                 <span className="source-score">
-                  {(source.rerank_score * 100).toFixed(0)}%
+                  {relevancePct(source.rerank_score)}%
                 </span>
                 <p className="source-preview">{source.content.slice(0, 160)}…</p>
               </div>
