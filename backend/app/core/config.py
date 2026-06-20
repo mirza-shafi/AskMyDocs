@@ -101,4 +101,4 @@ def get_settings() -> Settings:
     Using ``@lru_cache`` ensures the .env file is parsed only once for the
     lifetime of the process.
     """
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

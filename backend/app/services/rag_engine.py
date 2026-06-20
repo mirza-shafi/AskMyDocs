@@ -173,8 +173,8 @@ async def run(
     parent_ids = [c.parent_id for c, _ in ranked_children if c.parent_id is not None]
     parents = await retriever.fetch_parents(db, parent_ids)
 
-    context_blocks: list[str] = []
-    sources: list[SourceChunk] = []
+    context_blocks = []
+    sources = []
     seen: set = set()
     for child, score in ranked_children:
         parent = parents.get(child.parent_id) if child.parent_id else None

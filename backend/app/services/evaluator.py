@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 import structlog
 from datasets import Dataset
+from pydantic import SecretStr
 from ragas import evaluate
 from ragas.metrics import (
     answer_relevancy,
@@ -72,8 +73,8 @@ async def evaluate_rag(sample: EvalInput) -> EvalScores:
     # Build Groq-backed LangChain LLM for Ragas judge
     try:
         from langchain_groq import ChatGroq  # type: ignore[import-untyped]
-        llm_judge = ChatGroq(
-            api_key=settings.GROQ_API_KEY,
+        llm_judge = ChatGroq(  # type: ignore[call-arg]
+            api_key=SecretStr(settings.GROQ_API_KEY),
             model_name="llama-3.1-8b-instant",  # Smaller model for eval to save quota
             temperature=0,
         )
@@ -93,7 +94,7 @@ async def evaluate_rag(sample: EvalInput) -> EvalScores:
             llm=llm_judge,
             raise_exceptions=False,
         )
-        scores_df = result.to_pandas()
+        scores_df = result.to_pandas()  # type: ignore[union-attr]
         row = scores_df.iloc[0]
 
         scores = EvalScores(

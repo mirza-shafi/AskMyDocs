@@ -68,7 +68,7 @@ async def rerank(
     pairs = [[query, passage] for passage in passages]
 
     scores: list[float] = await asyncio.to_thread(
-        lambda: model.predict(pairs).tolist()
+        lambda: model.predict(pairs).tolist()  # type: ignore[arg-type]
     )
 
     ranked = sorted(enumerate(scores), key=lambda t: t[1], reverse=True)

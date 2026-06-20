@@ -26,6 +26,7 @@ from app.api.deps import DBSession
 from app.models.document import DocumentChunk
 from app.schemas.ingest import (
     DeleteResponse,
+    DocumentListItem,
     DocumentListResponse,
     IngestResponse,
     IngestStatus,
@@ -278,7 +279,8 @@ async def list_all_documents(db: DBSession) -> DocumentListResponse:
         ``DocumentListResponse`` with doc summaries and total count.
     """
     docs = await list_documents(db)
-    return DocumentListResponse(documents=docs, total=len(docs))
+    items = [DocumentListItem(**d) for d in docs]
+    return DocumentListResponse(documents=items, total=len(items))
 
 
 @router.delete(

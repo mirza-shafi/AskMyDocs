@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 import structlog
 from sqlalchemy import delete, func, select, text
@@ -121,7 +122,7 @@ async def hybrid_search(
     # ── 3. Reciprocal Rank Fusion ─────────────────────────────────────────
     # Accumulate RRF scores per chunk id
     rrf_scores: dict[uuid.UUID, float] = {}
-    chunk_data: dict[uuid.UUID, tuple] = {}
+    chunk_data: dict[uuid.UUID, Any] = {}
 
     for rank, row in enumerate(vector_rows, start=1):
         rrf_scores[row.id] = rrf_scores.get(row.id, 0.0) + 1.0 / (rrf_k + rank)
@@ -312,7 +313,7 @@ async def delete_document_chunks(db: AsyncSession, doc_id: str) -> int:
     result = await db.execute(
         delete(DocumentChunk).where(DocumentChunk.doc_id == doc_id)
     )
-    return result.rowcount
+    return result.rowcount  # type: ignore[attr-defined]
 
 
 async def list_documents(db: AsyncSession) -> list[dict]:
