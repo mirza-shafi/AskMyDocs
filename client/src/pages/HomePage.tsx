@@ -6,14 +6,14 @@ export function HomePage() {
     <div className="home-page">
       {/* Hero */}
       <section className="hero">
-        <div className="hero-badge">Powered by Groq Llama-3 + pgvector</div>
+        <div className="hero-badge">Powered by Groq Llama-3.3-70B + pgvector</div>
         <h1 className="hero-title">
           Ask Your Documents
           <span className="hero-accent"> Anything</span>
         </h1>
         <p className="hero-subtitle">
           Upload PDFs or text files. Get precise, cited answers in seconds using
-          hybrid semantic search, cross-encoder reranking, and Llama-3.
+          hybrid semantic search, parent-child chunking, and Llama-3.3-70B.
         </p>
         <Link to="/chat" id="hero-cta-btn" className="btn btn-primary btn-lg">
           Start Asking →
@@ -41,6 +41,16 @@ export function HomePage() {
           <div className="feature-icon">📊</div>
           <h3>Ragas Evaluation</h3>
           <p>Built-in faithfulness and relevance scoring. CI gate fails builds that regress quality.</p>
+        </div>
+        <div className="feature-card">
+          <div className="feature-icon">🧩</div>
+          <h3>Parent-Child Chunking</h3>
+          <p>Retrieves highly precise child chunks and expands to larger parent contexts for the LLM.</p>
+        </div>
+        <div className="feature-card">
+          <div className="feature-icon">🧠</div>
+          <h3>Semantic Chunking</h3>
+          <p>Intelligently groups text by semantic boundaries rather than rigid character limits.</p>
         </div>
       </section>
 
