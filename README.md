@@ -1,20 +1,41 @@
 # AskMyDocs — AI-Powered Document Q&A
 
-> Production-grade RAG system: **Hybrid Search** (pgvector + FTS) + **Cross-Encoder Reranking** + **Groq Llama-3** with citation enforcement.
+> Production-grade RAG system: **Semantic & Parent-Child Chunking** + **Hybrid Search** (pgvector + FTS) + **Cross-Encoder Reranking** + **Groq Llama-3.3** with citation enforcement.
 
 ---
 
 ## Architecture
 
-```
+```text
 Frontend (React + Vite + TS)  →  Vercel
 Backend  (FastAPI + Python)   →  Render (Docker)
 Database (PostgreSQL + pgvector) → Neon.tech
 ```
 
-**RAG Pipeline:**
-```
-Query → Embed (bge-small) → Hybrid Retrieval (RRF) → Cross-Encoder Rerank → Groq LLM → Cited Answer
+**RAG Pipeline Visualization:**
+
+```mermaid
+graph TD
+    %% Ingestion Flow
+    Doc[Upload Document] --> SC[Semantic Chunking]
+    SC --> PC[Create Parent-Child Chunks]
+    PC --> Embed[Embed Child Chunks]
+    Embed --> DB[(PostgreSQL pgvector)]
+    
+    %% Query Flow
+    Q[User Query] --> HS[Hybrid Search]
+    DB --> HS
+    HS -->|Vector + Full-Text via RRF| CC[Top Child Candidates]
+    CC --> Rerank[Cross-Encoder Reranking]
+    Rerank --> Expand[Expand to Parent Context]
+    Expand --> LLM[Groq Llama-3.3-70B]
+    LLM --> Ans[Cited Answer with Sources]
+
+    style Doc fill:#e1f5fe,stroke:#0288d1
+    style Q fill:#e1f5fe,stroke:#0288d1
+    style DB fill:#e8f5e9,stroke:#388e3c
+    style LLM fill:#fff3e0,stroke:#f57c00
+    style Ans fill:#f3e5f5,stroke:#7b1fa2
 ```
 
 ---
@@ -170,7 +191,8 @@ AskMyDocs/
 |---|---|
 | Embeddings | `BAAI/bge-small-en-v1.5` (384-dim, local) |
 | Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` (local) |
-| LLM | Groq Llama-3 70B |
+| LLM | Groq Llama-3.3-70B |
+| Chunking | Semantic Chunking + Parent-Child Context Expansion |
 | Vector Search | pgvector (HNSW index, cosine similarity) |
 | Keyword Search | PostgreSQL tsvector (GIN index) |
 | Fusion | Reciprocal Rank Fusion (RRF, k=60) |
